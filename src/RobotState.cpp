@@ -6,7 +6,7 @@ namespace CornerDetector {
         SetParameter();
         marker_EPCC = n.advertise<visualization_msgs::Marker>("EPCC", 10);
         marker_EPCC_corner = n.advertise<visualization_msgs::Marker>("EPCC_corner", 10);
-        corner_rt = n.advertise<mrpt_msgs::ObservationRangeBearing>("corner", 10);
+        corner_rt = n.advertise<mrpt_msgs::ObservationRangeBearing>("landmark", 10);
 
         std::thread t1(&RobotState::TFUpdate, this);
         Run();
@@ -39,6 +39,7 @@ namespace CornerDetector {
         downsampling_data = LaserScanToPoint();
 
         CornerDetector::LineClustering line_clustering(downsampling_data);
+        /////
         line_clustering.EPCC();
         line_clustering.DetermineCorner();
 
@@ -59,53 +60,53 @@ namespace CornerDetector {
         vs.Run(line_clustering, epcc, down, corner, tmp);
         // vs.vis(accumulate_features.old_f, corner);
 
-        marker_EPCC_corner.publish(corner);
+        if(epcc.points.size() != 0)
+        {
+            marker_EPCC.publish(epcc);
+        }
+
+        if(corner.points.size() != 0)
+        {
+            marker_EPCC_corner.publish(corner);
+            // ROS_INFO("corner size: %d", corner.points.size());
+        }
+        else
+        {
+            ROS_INFO("[Warning] Cannot find corner");
+        }
 
         // Math.atan2(deltaY, deltaX)
         mrpt_msgs::ObservationRangeBearing points;
         // points.header.frame_id = "base_scan";
-        points.header.frame_id = "base_link";
+        points.header.frame_id = "base_scan";
+        points.max_sensor_distance = msg->range_max;
+        points.min_sensor_distance = msg->range_min;
+        points.sensor_std_yaw = 0.1;
         
-        for (std::vector<float> point:line_clustering.corner_points) {
-            std::vector<float> xy = {0.0, 0.0};
-            float r = VectorUtils::GetTwoPointsDistance(xy, point);
-            std::cout << r << std::endl;
-            
-            double theta = std::atan2(point[1] - xy[1], point[0] - xy[0]);
+        if(line_clustering.corner_points.size() != 0)
+        {
+            for (std::vector<float> point:line_clustering.corner_points) {
+                std::vector<float> xy = {0.0, 0.0};
+                float r = VectorUtils::GetTwoPointsDistance(xy, point);
+                //std::cout << r << std::endl;
+                
+                double theta = std::atan2(point[1] - xy[1], point[0] - xy[0]);
 
-            mrpt_msgs::SingleRangeBearingObservation p;
-            p.range = r;
-            p.yaw = theta;
+                mrpt_msgs::SingleRangeBearingObservation p;
+                p.range = r;
+                p.yaw = theta;
+                // p.id = points.sensed_data.size();
+                p.id = -1;
 
-            // Not use
-            p.pitch = 0;
-            p.id = 0;
+                // Not use
+                p.pitch = 0;                
 
-            points.sensed_data.push_back(p);
+                points.sensed_data.push_back(p);
+            }
+            points.header.stamp = msg->header.stamp;
+            corner_rt.publish(points);
         }
-
-        /*
-        for (AccumulateFeatures::Features features:accumulate_features.old_f) {
-            float rx = robot_tf_.position.x;
-            float ry = robot_tf_.position.y;
-            std::vector<float> xy = {rx, ry};
-            float r = VectorUtils::GetTwoPointsDistance(xy, features.f);
-            
-            double theta = robot_tf_.orientation.z + std::atan2(features.f[1] - xy[1], features.f[0] - xy[0]);
-
-            mrpt_msgs::SingleRangeBearingObservation p;
-            p.range = r;
-            p.yaw = theta;
-
-            // Not use
-            p.pitch = 0;
-            p.id = 0;
-
-            points.sensed_data.push_back(p);
-        }
-        */
-
-        corner_rt.publish(points);
+        
     }
 
     void RobotState::PointCloud2Callback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
@@ -175,8 +176,8 @@ namespace CornerDetector {
             tf::TransformListener tf;
             tf::StampedTransform transform_robot;
             try{
-                tf.waitForTransform("map", "base_link", ros::Time(0), ros::Duration(3.0));
-                tf.lookupTransform("map", "base_link", ros::Time(0), transform_robot);
+                tf.waitForTransform("map", "base_scan", ros::Time(0), ros::Duration(3.0));
+                tf.lookupTransform("map", "base_scan", ros::Time(0), transform_robot);
                 
                 robot_tf.position.x = transform_robot.getOrigin().getX();
                 robot_tf.position.y = transform_robot.getOrigin().getY();

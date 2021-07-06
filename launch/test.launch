@@ -1,23 +1,98 @@
 <launch>
-    <param name="use_sim_time" value="true"/>
+  <param name="use_sim_time" value="true"/>
+  <param name="use_2d_lidar" value="true"/>
 
-    <param name="use_2d_lidar" value="true"/>
-    <param name="file_path_points" type="str" value="/home/shjoo/catkin_ws/src/Corner-Detection/data/point_database.txt"/>
-    <param name="file_path_lines" type="str"  value="/home/shjoo/catkin_ws/src/Corner-Detection/data/line_database.txt"/>
-    
+  <node pkg="corner_detector" type="Detector" name="Detector" output="screen"/>
 
-    <node pkg="rviz" type="rviz" name="rviz"/>
+  <!-- Arguments -->
+  <arg name="model" default="waffle"/>
+  <arg name="x_pos" default="0.0"/>
+  <arg name="y_pos" default="0.0"/>
+  <arg name="z_pos" default="0.0"/>
+  <arg name="world" default="$(find active_slam)/world/fu.world"/>
+  <arg name="gazebo_gui" default="false"/>
+  <arg name="open_rviz" default="true"/>
+  <arg name="move_forward_only" default="false"/>
 
-    <node pkg="corner_detector" type="Detector" name="Detector" output="screen"/>
+  <!-- launch gazebo simulator -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <!-- <env name="GAZEBO_MODEL_PATH" value="$(find active_slam)/models"/> -->
+    <arg name="world_name" value="$(arg world)"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="$(arg gazebo_gui)"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
 
-    <!-- point publisher -->
-    <!-- <node pkg="corner_detector" type="PointPublisher.py" name="PointPublisher" output="screen"/> -->
-    <!-- line publisher -->
-    <!-- <node pkg="corner_detector" type="LinePublisher.py" name="LinePublisher" output="screen"/> -->
+  <!-- include a robot model -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find active_slam)/urdf/turtlebot3_$(arg model).urdf.xacro" />
 
-    <arg name="bag_path" default="/home/shjoo/HDD/Dataset/SKKU"/>
-    <arg name="bag_file" default="7th.bag"/>
-    <!-- <arg name="bag_path" default="/home/shjoo/catkin_ws/src/Corner-Detection/data"/> -->
-    <!-- <arg name="bag_file" default="senven_floor_2.bag"/> -->
-    <node pkg="rosbag" type="play" name="rosbag_play" args="--clock -l $(arg bag_path)/$(arg bag_file)"/>
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf"
+        args="-urdf -model turtlebot3_$(arg model) -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description" />
+
+  <!-- publish tf topics -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <param name="publish_frequency" type="double" value="50.0" />
+  </node> 
+
+  <!-- move_base -->
+  <include file="$(find active_slam)/launch/move_base.launch">
+    <arg name="model" value="$(arg model)" />
+    <arg name="move_forward_only" value="$(arg move_forward_only)"/>
+  </include>
+
+  <!-- map_server -->
+  <node pkg="map_server" name="map_server" type="map_server" args="$(find corner_detector)/maps/map.yaml"/>
+
+  <!-- AMCL -->
+  <include file="$(find san_navigation)/launch/amcl.launch"/>
+
+  <!-- Gmapping -->
+  <!-- <include file="$(find active_slam)/launch/gmapping.launch"/> -->
+
+  <!-- Active SLAM -->
+  <!-- <node pkg="active_slam" type="active_slam_node" name="active_slam" output="screen">
+  </node> -->
+
+  <!-- explore -->
+  <!-- <node pkg="explore_lite" type="explore" respawn="false" name="explore" output="screen">
+    <param name="robot_base_frame" value="base_footprint"/>
+    <param name="costmap_topic" value="map"/>
+    <param name="costmap_updates_topic" value="map_updates"/>
+    <param name="visualize" value="true"/>
+    <param name="planner_frequency" value="0.33"/>
+    <param name="progress_timeout" value="30.0"/>
+    <param name="potential_scale" value="3.0"/>
+    <param name="orientation_scale" value="0.0"/>
+    <param name="gain_scale" value="1.0"/>
+    <param name="transform_tolerance" value="0.3"/>
+    <param name="min_frontier_size" value="1"/>
+  </node> -->
+
+  <!-- rviz -->
+  <group if="$(arg open_rviz)"> 
+    <node pkg="rviz" type="rviz" name="rviz" required="true"
+          args="-d $(find active_slam)/rviz/turtlebot.rviz"/>
+  </group>
+
+  <!--PLAY RAWLOG FILE-->
+  <!-- <include file="$(find mrpt_rawlog)/launch/demo_play_ekf_2d.launch" /> -->
+
+  <!--PARAMETERS-->
+  <param name="ellipse_scale" value="1"/>
+  <param name="ini_filename" value="$(find corner_detector)/param/kf-slam_demo_2d.ini"/>
+  <param name="odom_frame_id" value="/odom"/>
+  <param name="global_frame_id" value="/map"/>
+  <param name="base_frame_id" value="/base_footprint"/>
+  <!-- for multiple sensors, place comma eg "r1/front_laser/scan,/scan_rear " -->
+  <param name="sensor_source" value="/landmark"/>
+
+  <!-- Setting environment variables -->
+  <env name="ROSCONSOLE_CONFIG_FILE" value="$(find mrpt_ekf_slam_2d)/config/rosconsole.config"/>
+
+  <!--SLAM RUN-->
+  <!-- <node pkg="rviz" type="rviz" name="rviz_nav" output="screen" args="-d $(find mrpt_ekf_slam_2d)/rviz/  rviz_conf_ekf_2d.rviz"></node> -->
+  <node pkg="mrpt_ekf_slam_2d" type="mrpt_ekf_slam_2d" name="mrpt_ekf_slam_2d" output="screen"></node>
+
 </launch>

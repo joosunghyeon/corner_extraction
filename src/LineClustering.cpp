@@ -50,7 +50,9 @@ namespace CornerDetector
             std::vector<float> pre_point = {line.points_in_line[line.points_in_line.size() - 1](0, 0), line.points_in_line[line.points_in_line.size() - 1](1, 0)};
             std::vector<float> l_point = {current_point(0, 0), current_point(1, 0)};
             float dis = VectorUtils::GetTwoPointsDistance(pre_point, l_point);
-            if((od == 0 || (od < k_min * sqrtf(line.cluster_distance_variance))) && (dis < 0.5)) {
+            
+            if(((fabs(od-0.0) < 0.00001) || (od < 0.5 * k_min * sqrtf(line.cluster_distance_variance))) && (dis < 1.2))
+            {
                 // add current_point
                 cluster_lines[index_of_cluster].points_in_line.push_back(current_point);
                 int index = cluster_lines[index_of_cluster].points_in_line.size() - 1;
@@ -63,7 +65,10 @@ namespace CornerDetector
                 cluster_lines[index_of_cluster].cluster_distance_variance = ClusterdistanceVariance(index);
 
                 buffer.clear();
-            } else {
+
+            }
+            else
+            {
                 buffer.push_back(current_point);
                 if(buffer.size() >= k_min) {
                     if(IsConsistent(buffer)) {
@@ -89,7 +94,7 @@ namespace CornerDetector
         // 2. consistnet
 
         // Point to Point distance
-        float dis_threshold = 0.15;
+        float dis_threshold = 1.2;
         // Point to Line distance
         float sub_threshold = 0.05;
         std::vector<float> pre_point = {buffer[0](0, 0), buffer[0](1, 0)};

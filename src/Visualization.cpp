@@ -17,7 +17,7 @@ namespace CornerDetector
                             visualization_msgs::Marker &tmp) {
 
         // EPCC Line Clustering
-        // EPCCMarker_v2(line_clustering.cluster_lines, epcc);
+        EPCCMarker_v2(line_clustering.cluster_lines, epcc);
 
         // DownSampling Point
         // DownsamplingMarker(line_clustering.cluster_points, down);
@@ -31,7 +31,7 @@ namespace CornerDetector
     }
 
     void Visualization::vis(std::vector<AccumulateFeatures::Features> old_f, visualization_msgs::Marker &corner) {
-        corner.header.frame_id = "/map";
+        corner.header.frame_id = "/base_scan";
         corner.header.stamp = ros::Time::now();
         corner.ns = "breakpoint_detector";
         corner.action = visualization_msgs::Marker::ADD;
@@ -178,7 +178,7 @@ namespace CornerDetector
     }
 
     void Visualization::EPCCCornerMarker(std::vector<std::vector<float>> corner_points, visualization_msgs::Marker &corner) {
-        corner.header.frame_id = "/base_scan";
+        corner.header.frame_id = "base_scan";
         corner.header.stamp = ros::Time::now();
         corner.ns = "breakpoint_detector";
         corner.action = visualization_msgs::Marker::ADD;
@@ -194,7 +194,7 @@ namespace CornerDetector
         corner.color.g = 0.0;
         corner.color.b = 1.0;
         corner.color.a = 1.0;
-
+        
         BOOST_FOREACH(const std::vector<float> cord, corner_points) {
             geometry_msgs::Point gp1;
             // gp1.x = cord[0] - 0.7;

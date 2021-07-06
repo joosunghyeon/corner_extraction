@@ -50,9 +50,9 @@ class RobotState {
         float robot_velodyne_tf_y = 0;
 
         // lidar data
-        float downsampling_threshold = 0.05;
-        float min_distance = 0.5;
-        float max_distance = 10;
+        float downsampling_threshold = 0.01;
+        float min_distance = 0.2;
+        float max_distance = 50;
         int ring = 8;
         std::vector<Eigen::Vector2f> downsampling_data;
     
